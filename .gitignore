@@ -1,0 +1,58 @@
+# Dependencias
+/node_modules
+.pnpm-store/
+
+# Compilado
+/dist
+/build
+
+# Cobertura y tests
+/coverage
+/.nyc_output
+*.lcov
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Variables de entorno (se versiona solo el ejemplo)
+.env
+.env.*
+!.env.example
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Editores / IDEs
+/.idea
+.project
+.classpath
+.settings/
+*.sublime-workspace
+/.vscode
+
+# Datos de runtime / temporales
+pids
+*.pid
+*.seed
+*.pid.lock
+.temp
+.tmp
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Artefactos de IA / asistentes de código
+/.claude
+/.agents
+CLAUDE.md
+AGENTS.md
+agents.md
+skills-lock.json
+/.cursor
+.cursorrules
+*.mdc
+.github/copilot-instructions.md
