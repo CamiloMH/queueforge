@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Crea un tag anotado con la versión indicada y lo publica en el remoto.
+# Crea un tag anotado con el bloque de CHANGELOG.md correspondiente a la versión
+# indicada y lo publica en el remoto.
 # Uso: pnpm release <version>   (ej. pnpm release 1.2.0)
 set -euo pipefail
 
@@ -37,12 +38,26 @@ if git tag --list | grep -qx "$TAG"; then
   exit 1
 fi
 
-echo "Creando tag anotado $TAG..."
-git tag -a "$TAG" -m "Release $TAG"
+# Extrae el bloque del CHANGELOG para esta versión.
+# Busca la línea "## [X.Y.Z]" y captura hasta la siguiente sección "## [" o fin de archivo.
+CHANGELOG_BLOCK=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
 
-echo "Publicando $TAG en origin..."
+if [[ -z "$CHANGELOG_BLOCK" ]]; then
+  echo "Error: no se encontró la sección [${VERSION}] en CHANGELOG.md." >&2
+  echo "Añade la sección '## [${VERSION}] - YYYY-MM-DD' antes de publicar." >&2
+  exit 1
+fi
+
+TAG_MESSAGE="Release ${TAG}
+
+${CHANGELOG_BLOCK}"
+
+echo "Creando tag anotado ${TAG}..."
+git tag -a "$TAG" -m "$TAG_MESSAGE"
+
+echo "Publicando ${TAG} en origin..."
 git push origin "$TAG"
 
 echo ""
-echo "✓ $TAG publicado correctamente."
-echo "  https://github.com/CamiloMH/queueforge/releases/tag/$TAG"
+echo "✓ ${TAG} publicado correctamente."
+echo "  https://github.com/CamiloMH/queueforge/releases/tag/${TAG}"
