@@ -23,6 +23,7 @@
     "migration:run": "pnpm typeorm migration:run",
     "migration:revert": "pnpm typeorm migration:revert",
     "seed": "ts-node src/persistence/seeds/seed.ts",
+    "release": "bash scripts/release.sh",
     "prepare": "husky"
   },
   "dependencies": {
