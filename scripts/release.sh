@@ -1,63 +1,83 @@
 #!/usr/bin/env bash
-# Crea un tag anotado con el bloque de CHANGELOG.md correspondiente a la versión
-# indicada y lo publica en el remoto.
+# Crea un tag anotado, lo publica y genera el GitHub Release con el bloque
+# correspondiente de CHANGELOG.md.
 # Uso: pnpm release <version>   (ej. pnpm release 1.2.0)
+#
+# Requiere: git, gh (GitHub CLI — https://cli.github.com/)
+#   Windows: winget install --id GitHub.cli
+#   Luego:   gh auth login
 set -euo pipefail
 
 VERSION="${1:-}"
+
+# ── Validaciones previas ────────────────────────────────────────────────────
 
 if [[ -z "$VERSION" ]]; then
   echo "Error: debes indicar la versión. Uso: pnpm release <version>" >&2
   exit 1
 fi
 
-# Valida que la versión sea un semver válido (x.y.z o x.y.z-prerelease).
 if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9._-]+)?$'; then
   echo "Error: versión inválida '$VERSION'. Formato esperado: x.y.z o x.y.z-prerelease" >&2
   exit 1
 fi
 
-TAG="v${VERSION}"
+if ! command -v gh &>/dev/null; then
+  echo "Error: GitHub CLI (gh) no está instalado." >&2
+  echo "  Windows : winget install --id GitHub.cli" >&2
+  echo "  macOS   : brew install gh" >&2
+  echo "  Linux   : https://github.com/cli/cli/blob/trunk/docs/install_linux.md" >&2
+  echo "Después ejecuta: gh auth login" >&2
+  exit 1
+fi
 
-# Debe ejecutarse desde la rama principal.
+TAG="v${VERSION}"
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
 if [[ "$CURRENT_BRANCH" != "main" ]]; then
   echo "Error: debes estar en la rama 'main' para publicar (rama actual: $CURRENT_BRANCH)" >&2
   exit 1
 fi
 
-# El árbol de trabajo debe estar limpio.
 if ! git diff --quiet || ! git diff --cached --quiet; then
   echo "Error: hay cambios sin commitear. Haz commit o stash antes de publicar." >&2
   exit 1
 fi
 
-# El tag no debe existir ya.
 if git tag --list | grep -qx "$TAG"; then
-  echo "Error: el tag '$TAG' ya existe." >&2
+  echo "Error: el tag '$TAG' ya existe localmente. Elimínalo con: git tag -d $TAG" >&2
   exit 1
 fi
 
-# Extrae el bloque del CHANGELOG para esta versión.
-# Busca la línea "## [X.Y.Z]" y captura hasta la siguiente sección "## [" o fin de archivo.
+# ── Extraer bloque del CHANGELOG ────────────────────────────────────────────
+
 CHANGELOG_BLOCK=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
 
 if [[ -z "$CHANGELOG_BLOCK" ]]; then
   echo "Error: no se encontró la sección [${VERSION}] en CHANGELOG.md." >&2
-  echo "Añade la sección '## [${VERSION}] - YYYY-MM-DD' antes de publicar." >&2
+  echo "Añade '## [${VERSION}] - YYYY-MM-DD' antes de publicar." >&2
   exit 1
 fi
 
-TAG_MESSAGE="Release ${TAG}
+# ── Crear tag anotado ───────────────────────────────────────────────────────
+
+echo "→ Creando tag anotado ${TAG}..."
+git tag -a "$TAG" -m "Release ${TAG}
 
 ${CHANGELOG_BLOCK}"
 
-echo "Creando tag anotado ${TAG}..."
-git tag -a "$TAG" -m "$TAG_MESSAGE"
+# ── Publicar tag ────────────────────────────────────────────────────────────
 
-echo "Publicando ${TAG} en origin..."
+echo "→ Publicando ${TAG} en origin..."
 git push origin "$TAG"
 
+# ── Crear GitHub Release ────────────────────────────────────────────────────
+
+echo "→ Creando GitHub Release ${TAG}..."
+gh release create "$TAG" \
+  --title "QueueForge ${TAG}" \
+  --notes "${CHANGELOG_BLOCK}"
+
 echo ""
-echo "✓ ${TAG} publicado correctamente."
-echo "  https://github.com/CamiloMH/queueforge/releases/tag/${TAG}"
+echo "✓ ${TAG} publicado y release creado."
+echo "  $(gh release view "$TAG" --json url --jq '.url')"
